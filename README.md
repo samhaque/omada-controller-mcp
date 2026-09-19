@@ -33,16 +33,6 @@ flowchart LR
     Agent == "MCP over HTTP/stdio<br/>+ bearer token" ==> Server
     Catalog -. "GET /v3/api-docs/00 All<br/>(live spec, startup + refresh)" .-> Controller
     Auth == "Authorization: AccessToken=...<br/>on every call" ==> Controller
-
-    classDef agent fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:2px
-    classDef server fill:#7c3aed,stroke:#4c1d95,color:#ffffff,stroke-width:2px
-    classDef internal fill:#0891b2,stroke:#164e63,color:#ffffff,stroke-width:2px
-    classDef controller fill:#059669,stroke:#064e3b,color:#ffffff,stroke-width:2px
-
-    class Agent agent
-    class Server server
-    class Catalog,Auth internal
-    class Controller controller
 ```
 
 ## Why not one MCP tool per endpoint
@@ -56,14 +46,6 @@ Registering one MCP tool per operation would put thousands of tool schemas in co
 Instead, a small fixed set of meta-tools searches, inspects, and dispatches against a catalog built from the controller's own live spec:
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {
-  'primaryColor': '#7c3aed', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#c4b5fd',
-  'lineColor': '#ea580c', 'actorBkg': '#4f46e5', 'actorBorder': '#c7d2fe', 'actorTextColor': '#ffffff',
-  'actorLineColor': '#ea580c', 'signalColor': '#ea580c', 'signalTextColor': '#ffffff',
-  'labelBoxBkgColor': '#4f46e5', 'labelBoxBorderColor': '#c7d2fe', 'labelTextColor': '#ffffff',
-  'noteBkgColor': '#d97706', 'noteBorderColor': '#78350f', 'noteTextColor': '#ffffff',
-  'activationBorderColor': '#c4b5fd', 'activationBkgColor': '#6d28d9', 'sequenceNumberColor': '#ffffff'
-}}}%%
 sequenceDiagram
     autonumber
     actor Agent as 🤖 MCP Agent
@@ -71,29 +53,23 @@ sequenceDiagram
     participant Cat as 📖 Catalog
     participant Ctl as 🌐 Omada Controller
 
-    rect rgb(109, 40, 217)
     note over Agent,Cat: 1 . discover
     Agent->>Srv: search_operations("reboot")
     Srv->>Cat: keyword match
     Cat-->>Srv: rebootDevice, rebootClient, etc.
     Srv-->>Agent: operation_id candidates
-    end
 
-    rect rgb(29, 78, 216)
     note over Agent,Cat: 2 . inspect (on demand)
     Agent->>Srv: get_operation_schema("rebootDevice")
     Srv->>Cat: lookup + resolved $ref schema
     Cat-->>Srv: parameters + body schema
     Srv-->>Agent: schema
-    end
 
-    rect rgb(4, 120, 87)
     note over Agent,Ctl: 3 . call
     Agent->>Srv: call_operation("rebootDevice", path_params, body)
     Srv->>Ctl: POST /openapi/v1/{omadacId}/.../reboot
     Ctl-->>Srv: {errorCode: 0, result}
     Srv-->>Agent: result
-    end
 ```
 
 Only `search_operations` and `get_operation_schema` results ever enter the agent's context. Never all 2000+ schemas at once.

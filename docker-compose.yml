@@ -13,7 +13,10 @@
 # auth.py reads *_FILE the same way either path.
 services:
   omada-mcp:
-    build: .
+    image: samhaq/omada-controller-mcp:latest
+    # Testing local changes instead of the published image: comment the
+    # image line above, uncomment this, and run ./scripts/build_venv_for_docker.sh first.
+    # build: .
     ports:
       - "8000:8000"
     environment:

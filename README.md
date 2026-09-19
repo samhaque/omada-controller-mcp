@@ -63,29 +63,47 @@ Only `search_operations` / `get_operation_schema` results ever enter the agent's
 
 ## Quickstart
 
-```bash
-uv sync
-cp .env.example .env   # fill in OMADA_CLIENT_ID / OMADA_CLIENT_SECRET
-export $(grep -v '^#' .env | xargs)
-uv run omada-mcp
-```
-
-Or with Docker:
+Prebuilt image on Docker Hub, no clone required:
 
 ```bash
-cp .env.example .env
-./scripts/build_venv_for_docker.sh
-docker compose up --build
+docker run -d -p 8000:8000 \
+  -e OMADA_BASE_URL=https://your-controller.local:8043 \
+  -e OMADA_CLIENT_ID=... \
+  -e OMADA_CLIENT_SECRET=... \
+  -e OMADA_MCP_AUTH_TOKEN=$(openssl rand -hex 32) \
+  samhaq/omada-controller-mcp:latest
 ```
 
-Connect from Claude Code:
+Then connect from Claude Code:
 
 ```bash
 claude mcp add --transport http omada http://localhost:8000/mcp \
   --header "Authorization: Bearer $OMADA_MCP_AUTH_TOKEN"
 ```
 
-`OMADA_BASE_URL` defaults to `https://your-controller.local:8043`, `OMADA_VERIFY_SSL` to `false` (self-signed LAN cert). Transport defaults to `stdio`; set `FASTMCP_TRANSPORT=http` for the HTTP/Docker path.
+That's it, running. `OMADA_BASE_URL` defaults to `https://your-controller.local:8043` if unset, `OMADA_VERIFY_SSL` to `false` (self-signed LAN cert).
+
+<details>
+<summary>Prefer docker compose, or building from source?</summary>
+
+```bash
+git clone https://github.com/samhaque/omada-controller-mcp && cd omada-controller-mcp
+cp .env.example .env   # fill in OMADA_CLIENT_ID / OMADA_CLIENT_SECRET / OMADA_MCP_AUTH_TOKEN
+docker compose up -d   # pulls the same published image by default
+```
+
+Or run it directly with `uv`, no Docker at all:
+
+```bash
+uv sync
+cp .env.example .env
+export $(grep -v '^#' .env | xargs)
+uv run omada-mcp
+```
+
+Transport defaults to `stdio` for the `uv run` path; set `FASTMCP_TRANSPORT=http` to match the Docker examples above. To build the image from source instead of pulling it, see `docker-compose.yml`'s comments.
+
+</details>
 
 ## Tools
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import httpx
 
-from omada_cli.auth import OmadaSession
+from omada_auth.auth import OmadaSession
 
 FAKE_OMADAC_ID = "7e2ec518acbd6bb74282eafcb4ce7aab"
 FAKE_TOKEN = "AT-fake-token"
@@ -26,6 +26,11 @@ def _fake_handler(request: httpx.Request) -> httpx.Response:
                 "result": {"accessToken": FAKE_TOKEN, "tokenType": "bearer", "expiresIn": 7200},
             },
         )
+    if request.url.path == "/openapi/v1/OC/sites":
+        assert request.headers["Authorization"] == f"AccessToken={FAKE_TOKEN}"
+        return httpx.Response(200, json={"errorCode": 0, "msg": "Success.", "result": {"siteList": []}})
+    if request.url.path == "/openapi/v1/OC/fail":
+        return httpx.Response(200, json={"errorCode": -1, "msg": "boom", "result": None})
     raise AssertionError(f"unexpected request: {request.url}")
 
 
@@ -60,7 +65,20 @@ def test_authenticated_client_header():
     assert headers["Authorization"] == f"AccessToken={FAKE_TOKEN}"
 
 
+def test_request_returns_result_and_raises_on_error_code():
+    session = _session()
+    result = session.request("GET", "/openapi/v1/OC/sites")
+    assert result == {"siteList": []}
+
+    try:
+        session.request("GET", "/openapi/v1/OC/fail")
+        raise AssertionError("expected RuntimeError for non-zero errorCode")
+    except RuntimeError as e:
+        assert "boom" in str(e)
+
+
 if __name__ == "__main__":
     test_omadac_id_and_token()
     test_authenticated_client_header()
+    test_request_returns_result_and_raises_on_error_code()
     print("ok")

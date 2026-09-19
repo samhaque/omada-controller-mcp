@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__
+*.pyc
+tests
+examples
+scripts
+.env
+*.omada.env

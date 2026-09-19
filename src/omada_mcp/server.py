@@ -1,0 +1,204 @@
+"""MCP server exposing a TP-Link Omada controller's Open API.
+
+Design: 2000+ non-deprecated, non-MSP operations exist across Omada API
+versions and firmware releases (call server_info for this controller's exact
+count). Registering one MCP tool per operation would
+put thousands of tool schemas in every request's context before the agent
+asks anything - the opposite of token efficient. Instead this server exposes
+a small, fixed set of meta-tools (search / inspect / call) backed by an
+operation catalog built from the controller's own live OpenAPI spec:
+
+- search_operations   find candidate operations by keyword
+- get_operation_schema fetch one operation's parameters/body schema on demand
+- call_operation       invoke any cataloged operation by id
+- refresh_catalog      re-fetch the live spec (pick up a firmware upgrade
+                        without restarting the container)
+- server_info          which spec is loaded (live vs bundled, version, count)
+
+Two curated convenience tools (list_sites, list_devices) cover the two most
+common first questions without a search round-trip. Everything else - the
+full Omada API surface, whatever this controller's firmware actually
+supports - is reachable through call_operation.
+
+Trust model: call_operation can reach every cataloged operation, including
+destructive ones (reboot, config changes), using this server's own
+client-credentials session - it doesn't ask the caller to re-authenticate
+per call. Anyone who can reach this server's transport can drive the whole
+Omada API. Over stdio that's just "whoever can run this process." Over HTTP
+(the Docker deployment) that's "whoever can reach the port" - see
+OMADA_MCP_AUTH_TOKEN below and the README's trust-model section.
+"""
+
+from __future__ import annotations
+
+import hmac
+import os
+import sys
+from typing import Any
+
+from fastmcp import FastMCP
+from fastmcp.server.auth import AccessToken, TokenVerifier
+
+from omada_auth.auth import OmadaSession
+from omada_mcp import catalog as cat
+
+BASE_URL = os.environ.get("OMADA_BASE_URL", "https://your-controller.local:8043")
+VERIFY_SSL = os.environ.get("OMADA_VERIFY_SSL", "false").lower() == "true"
+AUTH_TOKEN = os.environ.get("OMADA_MCP_AUTH_TOKEN")
+
+
+class _StaticBearerAuth(TokenVerifier):
+    """Single shared-secret bearer token, for a home-LAN deployment.
+
+    Not OAuth - just a constant-time comparison against one token from
+    OMADA_MCP_AUTH_TOKEN. Enough to stop "anyone on the LAN segment" from
+    driving the whole Omada API with no credential of their own; not
+    intended to substitute for network segmentation.
+    """
+
+    def __init__(self, token: str) -> None:
+        super().__init__()
+        self._token = token
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        if not hmac.compare_digest(token, self._token):
+            return None
+        return AccessToken(token=token, client_id="omada-mcp-lan", scopes=[])
+
+
+if AUTH_TOKEN:
+    _auth = _StaticBearerAuth(AUTH_TOKEN)
+else:
+    _auth = None
+    print(
+        "warning: OMADA_MCP_AUTH_TOKEN not set - the MCP HTTP endpoint is unauthenticated; "
+        "anyone who can reach it can drive the full Omada API. Fine for stdio/loopback-only use, "
+        "set OMADA_MCP_AUTH_TOKEN before exposing this beyond localhost.",
+        file=sys.stderr,
+    )
+
+mcp = FastMCP(
+    name="omada",
+    instructions=(
+        "Query and manage a TP-Link Omada SDN controller on the local LAN. "
+        "Start with list_sites/list_devices for common questions, or "
+        "search_operations to find any other operation this controller "
+        "supports, then get_operation_schema before calling an unfamiliar one."
+    ),
+    auth=_auth,
+)
+
+session: OmadaSession
+_catalog: cat.Catalog
+
+
+def _startup() -> None:
+    """Build the session and operation catalog.
+
+    Deliberately not module-level: importing this module (for tests, a
+    REPL, `fastmcp dev` inspection) shouldn't require live credentials and
+    a reachable controller. Only actually running the server does.
+    """
+    global session, _catalog
+    session = OmadaSession(base_url=BASE_URL, verify_ssl=VERIFY_SSL)
+    spec, source = cat.load_spec(session.base_url, session.verify_ssl)
+    _catalog = cat.build_catalog(spec, source)
+
+
+@mcp.tool
+def server_info() -> dict[str, Any]:
+    """Report which Omada API spec this server is running against."""
+    return {
+        "controller_base_url": session.base_url,
+        "spec_source": _catalog.source,
+        "api_version": _catalog.version,
+        "operation_count": len(_catalog.operations),
+    }
+
+
+@mcp.tool
+def refresh_catalog() -> dict[str, Any]:
+    """Re-fetch the controller's live OpenAPI spec and rebuild the operation catalog.
+
+    Call this after a controller firmware upgrade to pick up new/changed/
+    removed endpoints without restarting this server.
+    """
+    global _catalog
+    spec, source = cat.load_spec(session.base_url, session.verify_ssl)
+    _catalog = cat.build_catalog(spec, source)
+    return server_info()
+
+
+@mcp.tool
+def search_operations(query: str, limit: int = 20) -> list[dict[str, Any]]:
+    """Search this controller's Omada API operations by keyword.
+
+    Matches against operation id, summary, and path, e.g. "client", "reboot",
+    "wlan ssid". Returns operation_id, method, path, and summary for each
+    match - call get_operation_schema on one before calling it if its
+    parameters aren't obvious from the summary.
+    """
+    return cat.search(_catalog, query, limit=limit)
+
+
+@mcp.tool
+def get_operation_schema(operation_id: str) -> dict[str, Any]:
+    """Get one operation's method, path, parameters, and request body schema."""
+    op = _catalog.operations.get(operation_id)
+    if op is None:
+        raise ValueError(f"unknown operation_id {operation_id!r}; use search_operations to find one")
+    return {
+        "operation_id": op.operation_id,
+        "method": op.method,
+        "path": op.path,
+        "summary": op.summary,
+        "parameters": op.parameters,
+        "request_body_schema": op.request_body_schema,
+    }
+
+
+@mcp.tool
+def call_operation(
+    operation_id: str,
+    path_params: dict[str, Any] | None = None,
+    query_params: dict[str, Any] | None = None,
+    body: dict[str, Any] | None = None,
+) -> Any:
+    """Call any cataloged Omada API operation by its operation_id.
+
+    omadacId is filled in automatically. Other path parameters (e.g.
+    siteId, apMac) go in path_params; query-string parameters in
+    query_params; a JSON request body (for POST/PUT operations that take
+    one) in body. Use get_operation_schema first if unsure what an
+    operation needs.
+    """
+    op = _catalog.operations.get(operation_id)
+    if op is None:
+        raise ValueError(f"unknown operation_id {operation_id!r}; use search_operations to find one")
+    path = cat.build_request_path(op, session.omadac_id, path_params or {})
+    return session.request(op.method, path, **cat.build_call_kwargs(query_params, body))
+
+
+@mcp.tool
+def list_sites(page: int = 1, page_size: int = 100) -> Any:
+    """List sites this controller manages."""
+    return session.request(
+        "GET",
+        f"/openapi/v1/{session.omadac_id}/sites",
+        params={"page": page, "pageSize": page_size},
+    )
+
+
+@mcp.tool
+def list_devices() -> Any:
+    """List all managed devices (access points, switches, gateways) across every site."""
+    return session.request("GET", f"/openapi/v1/{session.omadac_id}/devices")
+
+
+def main() -> None:
+    _startup()
+    mcp.run()
+
+
+if __name__ == "__main__":
+    main()

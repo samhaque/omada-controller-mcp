@@ -2,7 +2,7 @@
 
 import sys
 
-from omada_cli.auth import OmadaSession
+from omada_auth.auth import OmadaSession
 from omada_client.api.ap import get_radios_config
 
 

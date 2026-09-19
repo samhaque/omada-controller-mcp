@@ -12,6 +12,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -96,10 +97,16 @@ class OmadaSession:
     @property
     def omadac_id(self) -> str:
         if self._omadac_id is None:
-            with self._raw_client() as c:
-                resp = c.get("/api/info")
-                resp.raise_for_status()
-                body = resp.json()
+            try:
+                with self._raw_client() as c:
+                    resp = c.get("/api/info")
+                    resp.raise_for_status()
+                    body = resp.json()
+            except (httpx.HTTPError, ValueError) as e:
+                # ValueError covers resp.json() on a non-JSON (e.g. HTML) body -
+                # a reachable-but-misconfigured OMADA_BASE_URL shouldn't crash
+                # with a raw traceback.
+                raise RuntimeError(f"GET /api/info failed: {type(e).__name__}") from None
             if body.get("errorCode") != 0:
                 raise RuntimeError(f"GET /api/info failed: errorCode={body.get('errorCode')}")
             self._omadac_id = body["result"]["omadacId"]
@@ -123,7 +130,7 @@ class OmadaSession:
                 )
                 resp.raise_for_status()
                 body = resp.json()
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, ValueError) as e:
             raise RuntimeError(f"token request failed: {type(e).__name__}") from None
         if body.get("errorCode") != 0:
             raise RuntimeError(f"token request failed: errorCode={body.get('errorCode')} msg={body.get('msg')}")
@@ -137,6 +144,35 @@ class OmadaSession:
             self._fetch_token()
         assert self._token is not None
         return self._token
+
+    def request(self, method: str, path: str, **kwargs: Any) -> Any:
+        """Authenticated call to an absolute controller path, e.g.
+        ``/openapi/v1/<omadacId>/sites`` (v1 and v2 both fine - the caller
+        supplies the full path, already substituted).
+
+        For callers (the MCP server's dynamic operation dispatch, ad hoc
+        scripts) that don't need a full generated-SDK operation module.
+        Returns the parsed ``result`` field; raises RuntimeError on a
+        non-zero ``errorCode`` or a non-2xx response.
+        """
+        # Same reasoning as _fetch_token: an uncaught httpx exception here
+        # carries the request, whose headers hold the live access token -
+        # never let one escape this function.
+        try:
+            with self._raw_client() as c:
+                resp = c.request(
+                    method,
+                    path,
+                    headers={"Authorization": f"AccessToken={self.token}"},
+                    **kwargs,
+                )
+                resp.raise_for_status()
+                body = resp.json()
+        except (httpx.HTTPError, ValueError) as e:
+            raise RuntimeError(f"request to {path} failed: {type(e).__name__}") from None
+        if body.get("errorCode") != 0:
+            raise RuntimeError(f"Omada API error {body.get('errorCode')}: {body.get('msg')}")
+        return body.get("result")
 
     def client(self) -> AuthenticatedClient:
         """An AuthenticatedClient for generated API calls.

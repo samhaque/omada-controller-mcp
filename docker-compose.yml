@@ -1,0 +1,12 @@
+services:
+  omada-mcp:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      OMADA_BASE_URL: ${OMADA_BASE_URL:-https://your-controller.local:8043}
+      OMADA_CLIENT_ID: ${OMADA_CLIENT_ID:?set OMADA_CLIENT_ID in .env}
+      OMADA_CLIENT_SECRET: ${OMADA_CLIENT_SECRET:?set OMADA_CLIENT_SECRET in .env}
+      OMADA_VERIFY_SSL: ${OMADA_VERIFY_SSL:-false}
+      OMADA_MCP_AUTH_TOKEN: ${OMADA_MCP_AUTH_TOKEN:?set OMADA_MCP_AUTH_TOKEN in .env (openssl rand -hex 32) - this port is reachable from the whole LAN}
+    restart: unless-stopped

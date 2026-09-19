@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Commands
-- Tests (no pytest, plain assert scripts): `uv run python tests/test_auth.py` and `uv run python tests/test_catalog.py`
+- Tests (plain assert scripts, pytest-discovered): `uv run pytest`
 - Local dev: `uv sync`, then `uv run omada-mcp`
 - Docker: `./scripts/build_venv_for_docker.sh` must run before `docker build` or `docker compose up --build`. The Dockerfile has no install step by design, it only copies `.venv-docker/lib/python3.14/site-packages` in. Skipping this step fails the build with "site-packages not found."
 - Regenerate the SDK: `./scripts/regenerate.sh` (after refetching `openapi/controller-spec.json` from a live controller)

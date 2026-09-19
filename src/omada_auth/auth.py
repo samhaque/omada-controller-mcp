@@ -40,7 +40,7 @@ def _force_ipv4(base_url: str) -> str:
 
 
 def _env_or_file(name: str) -> str:
-    """Read NAME from the environment, or from the file at NAME_FILE (Docker/K8s secrets convention)."""
+    """Read NAME from the environment, or from the file at NAME_FILE (Docker/K8s secrets)."""
     value = os.environ.get(name)
     if value:
         return value
@@ -56,7 +56,8 @@ def _load_env_file(path: Path) -> None:
         return
     if path.stat().st_mode & 0o077:
         print(
-            f"warning: {path} is readable by group/other (mode {oct(path.stat().st_mode)[-3:]}); recommend chmod 600",
+            f"warning: {path} is readable by group/other "
+            f"(mode {oct(path.stat().st_mode)[-3:]}); recommend chmod 600",
             file=sys.stderr,
         )
     for line in path.read_text().splitlines():
@@ -148,10 +149,14 @@ class OmadaSession:
         except (httpx.HTTPError, ValueError) as e:
             raise RuntimeError(f"token request failed: {type(e).__name__}") from None
         if body.get("errorCode") != 0:
-            raise RuntimeError(f"token request failed: errorCode={body.get('errorCode')} msg={body.get('msg')}")
+            raise RuntimeError(
+                f"token request failed: errorCode={body.get('errorCode')} msg={body.get('msg')}"
+            )
         result = body["result"]
         self._token = result["accessToken"]
-        self._token_expires_at = time.monotonic() + result["expiresIn"] - TOKEN_SAFETY_MARGIN_SECONDS
+        self._token_expires_at = (
+            time.monotonic() + result["expiresIn"] - TOKEN_SAFETY_MARGIN_SECONDS
+        )
 
     @property
     def token(self) -> str:

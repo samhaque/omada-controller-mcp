@@ -94,13 +94,14 @@ def load_spec(base_url: str, verify_ssl: bool) -> tuple[dict[str, Any], str]:
     bundled = _load_bundled_spec()
     if bundled is not None:
         print(
-            f"warning: could not reach {base_url} for a live spec; using bundled snapshot {bundled_path}",
+            f"warning: could not reach {base_url} for a live spec; "
+            f"using bundled snapshot {bundled_path}",
             file=sys.stderr,
         )
         return bundled, f"bundled:{bundled_path}"
     raise RuntimeError(
-        f"no OpenAPI spec available: controller at {base_url} unreachable and no bundled snapshot found "
-        f"(set OMADA_MCP_SPEC_PATH, or run from the repo root)"
+        f"no OpenAPI spec available: controller at {base_url} unreachable "
+        f"and no bundled snapshot found (set OMADA_MCP_SPEC_PATH, or run from the repo root)"
     )
 
 
@@ -140,7 +141,9 @@ def _resolve_schema(
     return resolved
 
 
-def build_catalog(spec: dict[str, Any], source: str, *, include_deprecated: bool = False) -> Catalog:
+def build_catalog(
+    spec: dict[str, Any], source: str, *, include_deprecated: bool = False
+) -> Catalog:
     """Index every {omadacId}-scoped operation in the spec by operationId.
 
     Excludes MSP (``{mspId}``-scoped, multi-tenant reseller) paths: this
@@ -172,7 +175,12 @@ def build_catalog(spec: dict[str, Any], source: str, *, include_deprecated: bool
                 if p["name"] != _OMADAC_ID_PARAM
             ]
             body_schema = None
-            body = op.get("requestBody", {}).get("content", {}).get("application/json", {}).get("schema")
+            body = (
+                op.get("requestBody", {})
+                .get("content", {})
+                .get("application/json", {})
+                .get("schema")
+            )
             if body:
                 body_schema = _resolve_schema(spec, body)
             operations[operation_id] = Operation(

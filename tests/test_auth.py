@@ -1,6 +1,6 @@
 """Self-check for the auth shim, no live controller required.
 
-Run directly: uv run python tests/test_auth.py
+Run: uv run pytest tests/test_auth.py
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 import httpx
+import pytest
 
 from omada_auth.auth import OmadaSession, _env_or_file
 
@@ -19,7 +20,9 @@ FAKE_TOKEN = "AT-fake-token"
 
 def _fake_handler(request: httpx.Request) -> httpx.Response:
     if request.url.path == "/api/info":
-        return httpx.Response(200, json={"errorCode": 0, "msg": "Success.", "result": {"omadacId": FAKE_OMADAC_ID}})
+        return httpx.Response(
+            200, json={"errorCode": 0, "msg": "Success.", "result": {"omadacId": FAKE_OMADAC_ID}}
+        )
     if request.url.path == "/openapi/authorize/token":
         assert request.url.params["grant_type"] == "client_credentials"
         return httpx.Response(
@@ -32,7 +35,9 @@ def _fake_handler(request: httpx.Request) -> httpx.Response:
         )
     if request.url.path == "/openapi/v1/OC/sites":
         assert request.headers["Authorization"] == f"AccessToken={FAKE_TOKEN}"
-        return httpx.Response(200, json={"errorCode": 0, "msg": "Success.", "result": {"siteList": []}})
+        return httpx.Response(
+            200, json={"errorCode": 0, "msg": "Success.", "result": {"siteList": []}}
+        )
     if request.url.path == "/openapi/v1/OC/fail":
         return httpx.Response(200, json={"errorCode": -1, "msg": "boom", "result": None})
     raise AssertionError(f"unexpected request: {request.url}")
@@ -74,11 +79,8 @@ def test_request_returns_result_and_raises_on_error_code():
     result = session.request("GET", "/openapi/v1/OC/sites")
     assert result == {"siteList": []}
 
-    try:
+    with pytest.raises(RuntimeError, match="boom"):
         session.request("GET", "/openapi/v1/OC/fail")
-        raise AssertionError("expected RuntimeError for non-zero errorCode")
-    except RuntimeError as e:
-        assert "boom" in str(e)
 
 
 def test_env_or_file_prefers_direct_env_var():
@@ -122,13 +124,3 @@ def test_session_reads_credentials_from_file_env_vars():
             for k, v in env_backup.items():
                 if v is not None:
                     os.environ[k] = v
-
-
-if __name__ == "__main__":
-    test_omadac_id_and_token()
-    test_authenticated_client_header()
-    test_request_returns_result_and_raises_on_error_code()
-    test_env_or_file_prefers_direct_env_var()
-    test_env_or_file_reads_file_when_direct_var_unset()
-    test_session_reads_credentials_from_file_env_vars()
-    print("ok")

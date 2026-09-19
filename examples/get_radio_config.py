@@ -1,4 +1,7 @@
-"""Fetch an AP's radio config. Usage: uv run python examples/get_radio_config.py <site_id> <ap_mac>"""
+"""Fetch an AP's radio config.
+
+Usage: uv run python examples/get_radio_config.py <site_id> <ap_mac>
+"""
 
 import sys
 

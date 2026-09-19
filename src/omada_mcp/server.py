@@ -60,7 +60,9 @@ BASE_URL = os.environ.get("OMADA_BASE_URL", "https://your-controller.local:8043"
 VERIFY_SSL = os.environ.get("OMADA_VERIFY_SSL", "false").lower() == "true"
 AUTH_TOKEN = os.environ.get("OMADA_MCP_AUTH_TOKEN")
 RATE_LIMIT_PER_SECOND = float(os.environ.get("OMADA_MCP_RATE_LIMIT", "20"))
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("OMADA_MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get("OMADA_MCP_ALLOWED_HOSTS", "").split(",") if h.strip()
+]
 
 
 class _StaticBearerAuth(TokenVerifier):
@@ -169,7 +171,9 @@ def get_operation_schema(operation_id: str) -> dict[str, Any]:
     """Get one operation's method, path, parameters, and request body schema."""
     op = _catalog.operations.get(operation_id)
     if op is None:
-        raise ValueError(f"unknown operation_id {operation_id!r}; use search_operations to find one")
+        raise ValueError(
+            f"unknown operation_id {operation_id!r}; use search_operations to find one"
+        )
     return {
         "operation_id": op.operation_id,
         "method": op.method,
@@ -197,7 +201,9 @@ def call_operation(
     """
     op = _catalog.operations.get(operation_id)
     if op is None:
-        raise ValueError(f"unknown operation_id {operation_id!r}; use search_operations to find one")
+        raise ValueError(
+            f"unknown operation_id {operation_id!r}; use search_operations to find one"
+        )
     path = cat.build_request_path(op, session.omadac_id, path_params or {})
     return session.request(op.method, path, **cat.build_call_kwargs(query_params, body))
 

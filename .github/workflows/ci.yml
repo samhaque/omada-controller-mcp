@@ -25,8 +25,9 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run python tests/test_auth.py
-      - run: uv run python tests/test_catalog.py
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
 
   dependency-scan:
     runs-on: ubuntu-latest

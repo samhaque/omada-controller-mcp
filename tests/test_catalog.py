@@ -1,11 +1,12 @@
 """Self-check for omada_mcp.catalog: build_catalog / search / build_request_path.
 
-Run: uv run python tests/test_catalog.py
+Run: uv run pytest tests/test_catalog.py
 """
 
 from __future__ import annotations
 
 import httpx
+import pytest
 
 from omada_mcp import catalog as cat
 
@@ -32,8 +33,18 @@ FAKE_SPEC = {
                 "operationId": "getSites",
                 "summary": "List sites",
                 "parameters": [
-                    {"name": "omadacId", "in": "path", "required": True, "schema": {"type": "string"}},
-                    {"name": "page", "in": "query", "required": True, "schema": {"type": "integer"}},
+                    {
+                        "name": "omadacId",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                    },
                 ],
             }
         },
@@ -42,7 +53,12 @@ FAKE_SPEC = {
                 "operationId": "siteList",
                 "summary": "Site list, alternate endpoint",
                 "parameters": [
-                    {"name": "omadacId", "in": "path", "required": True, "schema": {"type": "string"}}
+                    {
+                        "name": "omadacId",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
                 ],
             }
         },
@@ -51,17 +67,39 @@ FAKE_SPEC = {
                 "operationId": "patchClient",
                 "summary": "Rename a client",
                 "parameters": [
-                    {"name": "omadacId", "in": "path", "required": True, "schema": {"type": "string"}},
-                    {"name": "siteId", "in": "path", "required": True, "schema": {"type": "string"}},
-                    {"name": "clientMac", "in": "path", "required": True, "schema": {"type": "string"}},
+                    {
+                        "name": "omadacId",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    },
+                    {
+                        "name": "siteId",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    },
+                    {
+                        "name": "clientMac",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    },
                 ],
                 "requestBody": {
-                    "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientPatch"}}}
+                    "content": {
+                        "application/json": {"schema": {"$ref": "#/components/schemas/ClientPatch"}}
+                    }
                 },
             }
         },
         "/openapi/v1/{omadacId}/sites/{siteId}/clients/{clientMac}/legacy": {
-            "get": {"operationId": "legacyGetClient", "summary": "Old", "deprecated": True, "parameters": []}
+            "get": {
+                "operationId": "legacyGetClient",
+                "summary": "Old",
+                "deprecated": True,
+                "parameters": [],
+            }
         },
         "/openapi/v1/{omadacId}/topology/tree": {
             "post": {
@@ -69,7 +107,9 @@ FAKE_SPEC = {
                 "summary": "Self-referencing topology tree",
                 "parameters": [],
                 "requestBody": {
-                    "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Node"}}}
+                    "content": {
+                        "application/json": {"schema": {"$ref": "#/components/schemas/Node"}}
+                    }
                 },
             }
         },
@@ -87,7 +127,9 @@ FAKE_SPEC = {
         "/openapi/v1/msp/{mspId}/sites": {
             "get": {"operationId": "mspGetSites", "summary": "MSP sites", "parameters": []}
         },
-        "/api/info": {"get": {"operationId": "getInfo", "summary": "unscoped, excluded", "parameters": []}},
+        "/api/info": {
+            "get": {"operationId": "getInfo", "summary": "unscoped, excluded", "parameters": []}
+        },
     },
 }
 
@@ -104,8 +146,13 @@ def test_build_catalog_filters_and_dereferences() -> None:
     assert catalog.version == "6.3.0.45"
 
     patch = catalog.operations["patchClient"]
-    assert patch.request_body_schema == {"type": "object", "properties": {"name": {"type": "string"}}}
-    assert {p["name"] for p in patch.parameters} == {"siteId", "clientMac"}, "omadacId excluded (auto-filled)"
+    assert patch.request_body_schema == {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+    }
+    assert {p["name"] for p in patch.parameters} == {"siteId", "clientMac"}, (
+        "omadacId excluded (auto-filled)"
+    )
 
 
 def test_build_catalog_include_deprecated() -> None:
@@ -118,7 +165,9 @@ def test_build_catalog_resolves_circular_ref_without_recursing_forever() -> None
     schema = catalog.operations["postTree"].request_body_schema
     assert schema is not None
     children_items = schema["properties"]["children"]["items"]
-    assert children_items.get("note", "").startswith("circular"), "self-ref must terminate, not recurse forever"
+    assert children_items.get("note", "").startswith("circular"), (
+        "self-ref must terminate, not recurse forever"
+    )
 
 
 def test_build_catalog_non_json_body_has_no_schema() -> None:
@@ -145,11 +194,8 @@ def test_build_request_path_fills_omadac_id_and_validates() -> None:
     path = cat.build_request_path(op, "OC123", {"siteId": "s1", "clientMac": "aa:bb"})
     assert path == "/openapi/v1/OC123/sites/s1/clients/aa%3Abb"
 
-    try:
+    with pytest.raises(ValueError, match="clientMac"):
         cat.build_request_path(op, "OC123", {"siteId": "s1"})
-        raise AssertionError("expected ValueError for missing clientMac")
-    except ValueError as e:
-        assert "clientMac" in str(e)
 
 
 def test_build_request_path_rejects_traversal() -> None:
@@ -158,7 +204,9 @@ def test_build_request_path_rejects_traversal() -> None:
     path = cat.build_request_path(
         op, "OC123", {"siteId": "../../msp/1/sites", "clientMac": "aa:bb"}
     )
-    assert "%2F" in path, "the '/' in the malicious siteId must be percent-encoded, not a literal separator"
+    assert "%2F" in path, (
+        "the '/' in the malicious siteId must be percent-encoded, not a literal separator"
+    )
     # The real proof: build the actual request httpx would send and confirm
     # its resolved path still starts inside this operation's own template -
     # not e.g. "/openapi/authorize/token" or an MSP path.
@@ -180,18 +228,20 @@ def test_build_request_path_unknown_path_param_in_template() -> None:
         parameters=[],
         request_body_schema=None,
     )
-    try:
+    with pytest.raises(ValueError, match="siteId"):
         cat.build_request_path(op, "OC123", {})
-        raise AssertionError("expected ValueError: path references {siteId} with no value supplied")
-    except ValueError as e:
-        assert "siteId" in str(e)
 
 
 def test_build_call_kwargs() -> None:
     assert cat.build_call_kwargs(None, None) == {}
     assert cat.build_call_kwargs({}, None) == {}
-    assert cat.build_call_kwargs(None, {}) == {"json": {}}, "body={} is meaningful, must not be dropped"
-    assert cat.build_call_kwargs({"page": 1}, {"name": "x"}) == {"params": {"page": 1}, "json": {"name": "x"}}
+    assert cat.build_call_kwargs(None, {}) == {"json": {}}, (
+        "body={} is meaningful, must not be dropped"
+    )
+    assert cat.build_call_kwargs({"page": 1}, {"name": "x"}) == {
+        "params": {"page": 1},
+        "json": {"name": "x"},
+    }
 
 
 def test_bundled_spec_loads_and_builds() -> None:
@@ -201,11 +251,3 @@ def test_bundled_spec_loads_and_builds() -> None:
     assert spec is not None
     catalog = cat.build_catalog(spec, "bundled")
     assert len(catalog.operations) > 1000, "sanity check against the real controller spec"
-
-
-if __name__ == "__main__":
-    for name, fn in list(globals().items()):
-        if name.startswith("test_"):
-            fn()
-            print(f"ok  {name}")
-    print("all tests passed")

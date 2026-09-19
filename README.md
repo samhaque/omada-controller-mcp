@@ -1,9 +1,10 @@
 # omada-controller-mcp
 
+[![CI](https://github.com/samhaque/omada-controller-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/samhaque/omada-controller-mcp/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastMCP](https://img.shields.io/badge/MCP-FastMCP%204-7C3AED?style=flat-square)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)
-![License](https://img.shields.io/badge/license-private-lightgrey?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 MCP server for a TP-Link Omada SDN controller, so Claude Code and other MCP-aware agents can query and manage it directly. Includes a typed Python SDK generated from the controller's own live OpenAPI spec, plus a hand-written auth shim for Omada's non-standard client-credentials flow.
 

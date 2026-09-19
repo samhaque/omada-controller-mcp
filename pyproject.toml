@@ -3,6 +3,8 @@ name = "omada-controller-mcp"
 version = "0.1.0"
 description = "MCP server + typed Python SDK for a TP-Link Omada SDN controller's Open API"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "samhaque", email = "13789262+samhaque@users.noreply.github.com" }
 ]

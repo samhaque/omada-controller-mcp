@@ -36,7 +36,7 @@ flowchart LR
 
     classDef agent fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:2px
     classDef server fill:#7c3aed,stroke:#4c1d95,color:#ffffff,stroke-width:2px
-    classDef internal fill:#c4b5fd,stroke:#5b21b6,color:#1e1b4b,stroke-width:1.5px
+    classDef internal fill:#0891b2,stroke:#164e63,color:#ffffff,stroke-width:2px
     classDef controller fill:#059669,stroke:#064e3b,color:#ffffff,stroke-width:2px
 
     class Agent agent
@@ -57,12 +57,12 @@ Instead, a small fixed set of meta-tools searches, inspects, and dispatches agai
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {
-  'primaryColor': '#312e81', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#818cf8',
-  'lineColor': '#a5b4fc', 'actorBkg': '#4f46e5', 'actorBorder': '#312e81', 'actorTextColor': '#ffffff',
-  'actorLineColor': '#a5b4fc', 'signalColor': '#c7d2fe', 'signalTextColor': '#e0e7ff',
-  'labelBoxBkgColor': '#4f46e5', 'labelBoxBorderColor': '#312e81', 'labelTextColor': '#ffffff',
-  'noteBkgColor': '#78350f', 'noteBorderColor': '#f59e0b', 'noteTextColor': '#fef3c7',
-  'activationBorderColor': '#818cf8', 'activationBkgColor': '#4338ca', 'sequenceNumberColor': '#1e1b4b'
+  'primaryColor': '#7c3aed', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#c4b5fd',
+  'lineColor': '#ea580c', 'actorBkg': '#4f46e5', 'actorBorder': '#c7d2fe', 'actorTextColor': '#ffffff',
+  'actorLineColor': '#ea580c', 'signalColor': '#ea580c', 'signalTextColor': '#ffffff',
+  'labelBoxBkgColor': '#4f46e5', 'labelBoxBorderColor': '#c7d2fe', 'labelTextColor': '#ffffff',
+  'noteBkgColor': '#d97706', 'noteBorderColor': '#78350f', 'noteTextColor': '#ffffff',
+  'activationBorderColor': '#c4b5fd', 'activationBkgColor': '#6d28d9', 'sequenceNumberColor': '#ffffff'
 }}}%%
 sequenceDiagram
     autonumber
@@ -71,7 +71,7 @@ sequenceDiagram
     participant Cat as 📖 Catalog
     participant Ctl as 🌐 Omada Controller
 
-    rect rgb(30, 27, 75)
+    rect rgb(109, 40, 217)
     note over Agent,Cat: 1 . discover
     Agent->>Srv: search_operations("reboot")
     Srv->>Cat: keyword match
@@ -79,7 +79,7 @@ sequenceDiagram
     Srv-->>Agent: operation_id candidates
     end
 
-    rect rgb(49, 46, 129)
+    rect rgb(29, 78, 216)
     note over Agent,Cat: 2 . inspect (on demand)
     Agent->>Srv: get_operation_schema("rebootDevice")
     Srv->>Cat: lookup + resolved $ref schema
@@ -87,7 +87,7 @@ sequenceDiagram
     Srv-->>Agent: schema
     end
 
-    rect rgb(6, 78, 59)
+    rect rgb(4, 120, 87)
     note over Agent,Ctl: 3 . call
     Agent->>Srv: call_operation("rebootDevice", path_params, body)
     Srv->>Ctl: POST /openapi/v1/{omadacId}/.../reboot
@@ -192,6 +192,22 @@ Without `OMADA_MCP_AUTH_TOKEN` set, that port is unauthenticated. Anything on th
 Set `OMADA_MCP_AUTH_TOKEN` (see `.env.example`) before exposing this beyond `localhost`. `docker-compose.yml` refuses to start without it.
 
 This is a single shared-secret bearer token, not OAuth. Enough to stop opportunistic LAN access. Not a substitute for network segmentation if your LAN itself isn't trusted.
+
+## Zero trust on an untrusted LAN
+
+Don't trust the network. Verify every request. Log everything. What's already built in, on the HTTP transport:
+
+- **Bearer token**, above. Constant-time comparison, so timing attacks don't leak it.
+- **Rate limiting**, `RateLimitingMiddleware`. Defends against brute force and request floods. Tune with `OMADA_MCP_RATE_LIMIT` (default 20 req/s).
+- **DNS-rebinding / Host header protection**, FastMCP's built-in `host_origin_protection="auto"`. Stops a malicious webpage's JS from using your browser as a proxy into your LAN. Lock it down further with `OMADA_MCP_ALLOWED_HOSTS`.
+- **Audit logging**, `StructuredLoggingMiddleware`. Every tool call, with arguments, goes to stderr as structured JSON. Assume breach, keep a record.
+
+What's deliberately not built in: **transport encryption**. This server speaks plain HTTP; the bearer token above travels in cleartext unless you add TLS yourself. Two ways to do that, don't reinvent either:
+
+- **Reverse proxy** (Caddy, nginx, Traefik) in front of this server, terminating TLS. Caddy in particular gets you automatic HTTPS (real cert if you have a domain, self-signed otherwise) in about 3 lines of Caddyfile.
+- **Overlay network** (Tailscale, WireGuard). Don't expose port 8000 to the LAN at all, only to the overlay. Then "untrusted LAN" stops being the threat model, since the traffic never touches it.
+
+Pick one if your LAN has devices you don't fully trust. On a small, single-user home network, the bearer token alone is a reasonable floor, just not the ceiling.
 
 ## Using the SDK directly (no MCP)
 

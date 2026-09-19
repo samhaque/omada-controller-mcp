@@ -27,17 +27,31 @@ per call. Anyone who can reach this server's transport can drive the whole
 Omada API. Over stdio that's just "whoever can run this process." Over HTTP
 (the Docker deployment) that's "whoever can reach the port" - see
 OMADA_MCP_AUTH_TOKEN below and the README's trust-model section.
+
+Zero-trust posture for an untrusted LAN: don't trust the network, verify
+every request, log everything. Bearer token auth (above) plus, on the HTTP
+transport: Host/Origin header validation against DNS-rebinding attacks,
+rate limiting, and structured audit logging of every tool call - see
+_build_middleware and main() below. Transport encryption itself is not this
+server's job: put a reverse proxy (Caddy, nginx) or an overlay network
+(Tailscale, WireGuard) in front of it rather than hand-rolling TLS here -
+see the README's trust-model section.
 """
 
 from __future__ import annotations
 
 import hmac
+import logging
 import os
 import sys
 from typing import Any
 
+import fastmcp
 from fastmcp import FastMCP
 from fastmcp.server.auth import AccessToken, TokenVerifier
+from fastmcp.server.middleware import Middleware
+from fastmcp.server.middleware.logging import StructuredLoggingMiddleware
+from fastmcp.server.middleware.rate_limiting import RateLimitingMiddleware
 
 from omada_auth.auth import OmadaSession
 from omada_mcp import catalog as cat
@@ -45,6 +59,8 @@ from omada_mcp import catalog as cat
 BASE_URL = os.environ.get("OMADA_BASE_URL", "https://your-controller.local:8043")
 VERIFY_SSL = os.environ.get("OMADA_VERIFY_SSL", "false").lower() == "true"
 AUTH_TOKEN = os.environ.get("OMADA_MCP_AUTH_TOKEN")
+RATE_LIMIT_PER_SECOND = float(os.environ.get("OMADA_MCP_RATE_LIMIT", "20"))
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("OMADA_MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 
 class _StaticBearerAuth(TokenVerifier):
@@ -77,6 +93,12 @@ else:
         file=sys.stderr,
     )
 
+_audit_logger = logging.getLogger("omada_mcp.audit")
+_middleware: list[Middleware] = [
+    RateLimitingMiddleware(max_requests_per_second=RATE_LIMIT_PER_SECOND, global_limit=False),
+    StructuredLoggingMiddleware(logger=_audit_logger, include_payloads=True),
+]
+
 mcp = FastMCP(
     name="omada",
     instructions=(
@@ -86,6 +108,7 @@ mcp = FastMCP(
         "supports, then get_operation_schema before calling an unfamiliar one."
     ),
     auth=_auth,
+    middleware=_middleware,
 )
 
 session: OmadaSession
@@ -197,7 +220,14 @@ def list_devices() -> Any:
 
 def main() -> None:
     _startup()
-    mcp.run()
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+    transport = fastmcp.settings.transport
+    if transport in ("http", "streamable-http", "sse"):
+        # host_origin_protection/allowed_hosts are HTTP-only kwargs - passing
+        # them under stdio would raise, since run_stdio_async doesn't accept them.
+        mcp.run(host_origin_protection="auto", allowed_hosts=ALLOWED_HOSTS or None)
+    else:
+        mcp.run()
 
 
 if __name__ == "__main__":

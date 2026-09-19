@@ -29,6 +29,47 @@ Not built in: **transport encryption**. This server speaks plain HTTP, so the be
 
 Pick one if your LAN has devices you don't fully trust. On a small, single-user home network, the bearer token alone is a reasonable floor, not the ceiling.
 
+### Tailscale, in practice
+
+If the host already runs Tailscale (`tailscale up`), the simplest path is to change nothing: `docker-compose.yml` still publishes `8000` to the LAN, but from another tailnet device just connect to the host's MagicDNS name instead of its LAN IP:
+
+```bash
+claude mcp add --transport http omada http://your-host.your-tailnet.ts.net:8000/mcp \
+  --header "Authorization: Bearer $OMADA_MCP_AUTH_TOKEN"
+```
+
+Traffic between tailnet devices is already WireGuard-encrypted, so this also solves the cleartext-bearer-token problem above without a reverse proxy. `OMADA_MCP_AUTH_TOKEN` still applies, Tailscale controls who's on the tailnet, not who can call the server.
+
+To stop the port from being reachable on the LAN at all (tailnet-only), bind it to loopback and put a Tailscale sidecar in front:
+
+```yaml
+services:
+  omada-mcp:
+    image: samhaq/omada-controller-mcp:latest
+    ports:
+      - "127.0.0.1:8000:8000"   # was "8000:8000"
+    environment:
+      # ...unchanged
+    restart: unless-stopped
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: omada-mcp
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY in .env, generate one at https://login.tailscale.com/admin/settings/keys}
+      TS_EXTRA_ARGS: --advertise-tags=tag:server
+    network_mode: service:omada-mcp
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    cap_add: [NET_ADMIN]
+    restart: unless-stopped
+
+volumes:
+  tailscale-state:
+```
+
+`network_mode: service:omada-mcp` puts the sidecar on the same network namespace, so `omada-mcp`'s `127.0.0.1:8000` is only reachable through the sidecar's tailnet interface, not the LAN.
+
 ## Credentials
 
 Never hardcode `OMADA_CLIENT_ID` / `OMADA_CLIENT_SECRET`, and never pass them as CLI args (visible in `ps`/process listings). In priority order:

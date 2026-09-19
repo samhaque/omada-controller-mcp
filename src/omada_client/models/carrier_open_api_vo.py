@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.epdg_open_api_vo import EPDGOpenApiVO
+
+
+T = TypeVar("T", bound="CarrierOpenApiVO")
+
+
+@_attrs_define
+class CarrierOpenApiVO:
+    """carrierList
+
+    Attributes:
+        carrier_name (str | Unset): Carrier Name.
+        epdgs (list[EPDGOpenApiVO] | Unset): epdgs
+    """
+
+    carrier_name: str | Unset = UNSET
+    epdgs: list[EPDGOpenApiVO] | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        carrier_name = self.carrier_name
+
+        epdgs: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.epdgs, Unset):
+            epdgs = []
+            for epdgs_item_data in self.epdgs:
+                epdgs_item = epdgs_item_data.to_dict()
+                epdgs.append(epdgs_item)
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update({})
+        if carrier_name is not UNSET:
+            field_dict["carrierName"] = carrier_name
+        if epdgs is not UNSET:
+            field_dict["epdgs"] = epdgs
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.epdg_open_api_vo import EPDGOpenApiVO
+
+        d = dict(src_dict)
+        carrier_name = d.pop("carrierName", UNSET)
+
+        _epdgs = d.pop("epdgs", UNSET)
+        epdgs: list[EPDGOpenApiVO] | Unset = UNSET
+        if _epdgs is not UNSET:
+            epdgs = []
+            for epdgs_item_data in _epdgs:
+                epdgs_item = EPDGOpenApiVO.from_dict(epdgs_item_data)
+
+                epdgs.append(epdgs_item)
+
+        carrier_open_api_vo = cls(
+            carrier_name=carrier_name,
+            epdgs=epdgs,
+        )
+
+        carrier_open_api_vo.additional_properties = d
+        return carrier_open_api_vo
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

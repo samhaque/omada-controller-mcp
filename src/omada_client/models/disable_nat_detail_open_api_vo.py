@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeVar, cast
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="DisableNatDetailOpenApiVO")
+
+
+@_attrs_define
+class DisableNatDetailOpenApiVO:
+    """
+    Attributes:
+        name (str): Name of the Disable Nat.
+        status (bool): The Status of the Disable Nat.
+        lan_list (list[str]): A list of Lan of the Disable Nat.
+        interface (str): The wan of the Disable Nat.
+        id (str | Unset): ID of the Disable Nat.
+        description (str | Unset): The description of the Disable Nat.
+    """
+
+    name: str
+    status: bool
+    lan_list: list[str]
+    interface: str
+    id: str | Unset = UNSET
+    description: str | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        name = self.name
+
+        status = self.status
+
+        lan_list = self.lan_list
+
+        interface = self.interface
+
+        id = self.id
+
+        description = self.description
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "name": name,
+                "status": status,
+                "lanList": lan_list,
+                "interface": interface,
+            }
+        )
+        if id is not UNSET:
+            field_dict["id"] = id
+        if description is not UNSET:
+            field_dict["description"] = description
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        d = dict(src_dict)
+        name = d.pop("name")
+
+        status = d.pop("status")
+
+        lan_list = cast(list[str], d.pop("lanList"))
+
+        interface = d.pop("interface")
+
+        id = d.pop("id", UNSET)
+
+        description = d.pop("description", UNSET)
+
+        disable_nat_detail_open_api_vo = cls(
+            name=name,
+            status=status,
+            lan_list=lan_list,
+            interface=interface,
+            id=id,
+            description=description,
+        )
+
+        disable_nat_detail_open_api_vo.additional_properties = d
+        return disable_nat_detail_open_api_vo
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

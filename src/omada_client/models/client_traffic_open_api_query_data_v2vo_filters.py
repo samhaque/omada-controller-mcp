@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from ..models.client_traffic_open_api_query_data_v2vo_filters_additional_property import (
+        ClientTrafficOpenApiQueryDataV2VOFiltersAdditionalProperty,
+    )
+
+
+T = TypeVar("T", bound="ClientTrafficOpenApiQueryDataV2VOFilters")
+
+
+@_attrs_define
+class ClientTrafficOpenApiQueryDataV2VOFilters:
+    """Filter [family] in the form of Map. When the value of the [family] key is empty, return an empty result."""
+
+    additional_properties: dict[
+        str, ClientTrafficOpenApiQueryDataV2VOFiltersAdditionalProperty
+    ] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+
+        field_dict: dict[str, Any] = {}
+        for prop_name, prop in self.additional_properties.items():
+            field_dict[prop_name] = prop.to_dict()
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.client_traffic_open_api_query_data_v2vo_filters_additional_property import (
+            ClientTrafficOpenApiQueryDataV2VOFiltersAdditionalProperty,
+        )
+
+        d = dict(src_dict)
+        client_traffic_open_api_query_data_v2vo_filters = cls()
+
+        additional_properties = {}
+        for prop_name, prop_dict in d.items():
+            additional_property = (
+                ClientTrafficOpenApiQueryDataV2VOFiltersAdditionalProperty.from_dict(
+                    prop_dict
+                )
+            )
+
+            additional_properties[prop_name] = additional_property
+
+        client_traffic_open_api_query_data_v2vo_filters.additional_properties = (
+            additional_properties
+        )
+        return client_traffic_open_api_query_data_v2vo_filters
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(
+        self, key: str
+    ) -> ClientTrafficOpenApiQueryDataV2VOFiltersAdditionalProperty:
+        return self.additional_properties[key]
+
+    def __setitem__(
+        self,
+        key: str,
+        value: ClientTrafficOpenApiQueryDataV2VOFiltersAdditionalProperty,
+    ) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

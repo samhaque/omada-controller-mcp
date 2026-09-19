@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="DeviceLocationDetailVO")
+
+
+@_attrs_define
+class DeviceLocationDetailVO:
+    """Device location
+
+    Attributes:
+        longitude (float | Unset): Longitude of the device.
+        latitude (float | Unset): Latitude of the device.
+        address (str | Unset): Address of the device.
+        timestamp (int | Unset): Last GPS fix timestamp
+    """
+
+    longitude: float | Unset = UNSET
+    latitude: float | Unset = UNSET
+    address: str | Unset = UNSET
+    timestamp: int | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        longitude = self.longitude
+
+        latitude = self.latitude
+
+        address = self.address
+
+        timestamp = self.timestamp
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update({})
+        if longitude is not UNSET:
+            field_dict["longitude"] = longitude
+        if latitude is not UNSET:
+            field_dict["latitude"] = latitude
+        if address is not UNSET:
+            field_dict["address"] = address
+        if timestamp is not UNSET:
+            field_dict["timestamp"] = timestamp
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        d = dict(src_dict)
+        longitude = d.pop("longitude", UNSET)
+
+        latitude = d.pop("latitude", UNSET)
+
+        address = d.pop("address", UNSET)
+
+        timestamp = d.pop("timestamp", UNSET)
+
+        device_location_detail_vo = cls(
+            longitude=longitude,
+            latitude=latitude,
+            address=address,
+            timestamp=timestamp,
+        )
+
+        device_location_detail_vo.additional_properties = d
+        return device_location_detail_vo
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

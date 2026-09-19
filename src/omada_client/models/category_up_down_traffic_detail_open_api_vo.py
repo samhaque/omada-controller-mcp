@@ -1,0 +1,108 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="CategoryUpDownTrafficDetailOpenApiVO")
+
+
+@_attrs_define
+class CategoryUpDownTrafficDetailOpenApiVO:
+    """Application uplink and downlink categories.
+
+    Attributes:
+        up (int | Unset): Up traffic.
+        down (int | Unset): Down traffic.
+        up_packet (int | Unset): Number of upstream packets
+        down_packet (int | Unset): Number of downstream packets
+        family_id (int | Unset): Family ID.
+        family_name (str | Unset): Family name. Such as: Enterprise Services, Conference and Business.
+    """
+
+    up: int | Unset = UNSET
+    down: int | Unset = UNSET
+    up_packet: int | Unset = UNSET
+    down_packet: int | Unset = UNSET
+    family_id: int | Unset = UNSET
+    family_name: str | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        up = self.up
+
+        down = self.down
+
+        up_packet = self.up_packet
+
+        down_packet = self.down_packet
+
+        family_id = self.family_id
+
+        family_name = self.family_name
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update({})
+        if up is not UNSET:
+            field_dict["up"] = up
+        if down is not UNSET:
+            field_dict["down"] = down
+        if up_packet is not UNSET:
+            field_dict["upPacket"] = up_packet
+        if down_packet is not UNSET:
+            field_dict["downPacket"] = down_packet
+        if family_id is not UNSET:
+            field_dict["familyId"] = family_id
+        if family_name is not UNSET:
+            field_dict["familyName"] = family_name
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        d = dict(src_dict)
+        up = d.pop("up", UNSET)
+
+        down = d.pop("down", UNSET)
+
+        up_packet = d.pop("upPacket", UNSET)
+
+        down_packet = d.pop("downPacket", UNSET)
+
+        family_id = d.pop("familyId", UNSET)
+
+        family_name = d.pop("familyName", UNSET)
+
+        category_up_down_traffic_detail_open_api_vo = cls(
+            up=up,
+            down=down,
+            up_packet=up_packet,
+            down_packet=down_packet,
+            family_id=family_id,
+            family_name=family_name,
+        )
+
+        category_up_down_traffic_detail_open_api_vo.additional_properties = d
+        return category_up_down_traffic_detail_open_api_vo
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

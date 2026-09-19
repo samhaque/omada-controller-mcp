@@ -1,0 +1,19 @@
+[project]
+name = "omada-cli"
+version = "0.1.0"
+description = "Typed Python SDK + auth shim for a TP-Link Omada controller's Open API"
+readme = "README.md"
+authors = [
+    { name = "samhaque", email = "13789262+samhaque@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "attrs>=26.1.0",
+    "httpx>=0.28.1",
+    "python-dateutil>=2.9.0.post0",
+    "typing-extensions>=4.16.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"

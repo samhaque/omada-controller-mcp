@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+T = TypeVar("T", bound="VoipDeleteTelephoneBook")
+
+
+@_attrs_define
+class VoipDeleteTelephoneBook:
+    """
+    Attributes:
+        force_delete (bool): Other configurations depending on this contact (call forwarding rules for instance) will be
+            deleted together if this field is true. Otherwise, a pre-check will be executed and an error message will be
+            returned when this contact is already used in some other configurations.
+    """
+
+    force_delete: bool
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        force_delete = self.force_delete
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "forceDelete": force_delete,
+            }
+        )
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        d = dict(src_dict)
+        force_delete = d.pop("forceDelete")
+
+        voip_delete_telephone_book = cls(
+            force_delete=force_delete,
+        )
+
+        voip_delete_telephone_book.additional_properties = d
+        return voip_delete_telephone_book
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.osw_interface_open_api import OswInterfaceOpenApi
+
+
+T = TypeVar("T", bound="OswInterfaceGridOswInterfaceOpenApi")
+
+
+@_attrs_define
+class OswInterfaceGridOswInterfaceOpenApi:
+    """
+    Attributes:
+        total_rows (int | Unset): Total rows of all items.
+        current_page (int | Unset): Current page number.
+        current_size (int | Unset): Number of entries per page.
+        data (list[OswInterfaceOpenApi] | Unset):
+        support_ipv_6 (bool | Unset): Switch supports ipv6 or not.
+    """
+
+    total_rows: int | Unset = UNSET
+    current_page: int | Unset = UNSET
+    current_size: int | Unset = UNSET
+    data: list[OswInterfaceOpenApi] | Unset = UNSET
+    support_ipv_6: bool | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        total_rows = self.total_rows
+
+        current_page = self.current_page
+
+        current_size = self.current_size
+
+        data: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.data, Unset):
+            data = []
+            for data_item_data in self.data:
+                data_item = data_item_data.to_dict()
+                data.append(data_item)
+
+        support_ipv_6 = self.support_ipv_6
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update({})
+        if total_rows is not UNSET:
+            field_dict["totalRows"] = total_rows
+        if current_page is not UNSET:
+            field_dict["currentPage"] = current_page
+        if current_size is not UNSET:
+            field_dict["currentSize"] = current_size
+        if data is not UNSET:
+            field_dict["data"] = data
+        if support_ipv_6 is not UNSET:
+            field_dict["supportIpv6"] = support_ipv_6
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.osw_interface_open_api import OswInterfaceOpenApi
+
+        d = dict(src_dict)
+        total_rows = d.pop("totalRows", UNSET)
+
+        current_page = d.pop("currentPage", UNSET)
+
+        current_size = d.pop("currentSize", UNSET)
+
+        _data = d.pop("data", UNSET)
+        data: list[OswInterfaceOpenApi] | Unset = UNSET
+        if _data is not UNSET:
+            data = []
+            for data_item_data in _data:
+                data_item = OswInterfaceOpenApi.from_dict(data_item_data)
+
+                data.append(data_item)
+
+        support_ipv_6 = d.pop("supportIpv6", UNSET)
+
+        osw_interface_grid_osw_interface_open_api = cls(
+            total_rows=total_rows,
+            current_page=current_page,
+            current_size=current_size,
+            data=data,
+            support_ipv_6=support_ipv_6,
+        )
+
+        osw_interface_grid_osw_interface_open_api.additional_properties = d
+        return osw_interface_grid_osw_interface_open_api
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

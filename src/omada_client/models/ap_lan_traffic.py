@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from typing_extensions import Self
+
+from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.lan_traffic import LanTraffic
+
+
+T = TypeVar("T", bound="ApLanTraffic")
+
+
+@_attrs_define
+class ApLanTraffic:
+    """
+    Attributes:
+        lan_traffic (LanTraffic | Unset): LAN traffic info
+    """
+
+    lan_traffic: LanTraffic | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        lan_traffic: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.lan_traffic, Unset):
+            lan_traffic = self.lan_traffic.to_dict()
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update({})
+        if lan_traffic is not UNSET:
+            field_dict["lanTraffic"] = lan_traffic
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.lan_traffic import LanTraffic
+
+        d = dict(src_dict)
+        _lan_traffic = d.pop("lanTraffic", UNSET)
+        lan_traffic: LanTraffic | Unset
+        if isinstance(_lan_traffic, Unset):
+            lan_traffic = UNSET
+        else:
+            lan_traffic = LanTraffic.from_dict(_lan_traffic)
+
+        ap_lan_traffic = cls(
+            lan_traffic=lan_traffic,
+        )
+
+        ap_lan_traffic.additional_properties = d
+        return ap_lan_traffic
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

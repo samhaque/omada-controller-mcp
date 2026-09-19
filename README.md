@@ -12,8 +12,6 @@ plus a hand-written auth shim for Omada's non-standard client-credentials +
 `Authorization: AccessToken=` flow (the spec declares no `securitySchemes`,
 so this has to be wired by hand).
 
-<br>
-
 ## Architecture
 
 ```mermaid
@@ -22,18 +20,18 @@ flowchart LR
 
     subgraph MCP["📦 omada-controller-mcp"]
         direction TB
-        Server["⚡ FastMCP Server<br/><sub>7 meta-tools</sub>"]
-        Catalog["📖 Operation Catalog<br/><sub>search · schema · dispatch</sub>"]
-        Auth["🔐 OmadaSession<br/><sub>client-credentials + token cache</sub>"]
+        Server["⚡ FastMCP Server<br/>7 meta-tools"]
+        Catalog["📖 Operation Catalog<br/>search, schema, dispatch"]
+        Auth["🔐 OmadaSession<br/>client-credentials + cache"]
         Server --> Catalog
         Server --> Auth
     end
 
-    Controller[("🌐 Omada SDN Controller<br/><sub>your-controller.local:8043</sub>")]
+    Controller[("🌐 Omada SDN Controller<br/>your-controller.local:8043")]
 
     Agent == "MCP over HTTP/stdio<br/>+ bearer token" ==> Server
     Catalog -. "GET /v3/api-docs/00 All<br/>(live spec, startup + refresh)" .-> Controller
-    Auth == "Authorization: AccessToken=…<br/>on every call" ==> Controller
+    Auth == "Authorization: AccessToken=...<br/>on every call" ==> Controller
 
     classDef agent fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:2px
     classDef server fill:#7c3aed,stroke:#4c1d95,color:#ffffff,stroke-width:2px
@@ -46,8 +44,6 @@ flowchart LR
     class Controller controller
 ```
 
-<br>
-
 ## Why not one MCP tool per endpoint
 
 The Omada API has 2000+ non-deprecated, non-MSP operations (call
@@ -59,6 +55,14 @@ meta-tools searches, inspects, and dispatches against a catalog built from
 the controller's own live spec:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'primaryColor': '#312e81', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#818cf8',
+  'lineColor': '#a5b4fc', 'actorBkg': '#4f46e5', 'actorBorder': '#312e81', 'actorTextColor': '#ffffff',
+  'actorLineColor': '#a5b4fc', 'signalColor': '#c7d2fe', 'signalTextColor': '#e0e7ff',
+  'labelBoxBkgColor': '#4f46e5', 'labelBoxBorderColor': '#312e81', 'labelTextColor': '#ffffff',
+  'noteBkgColor': '#78350f', 'noteBorderColor': '#f59e0b', 'noteTextColor': '#fef3c7',
+  'activationBorderColor': '#818cf8', 'activationBkgColor': '#4338ca', 'sequenceNumberColor': '#1e1b4b'
+}}}%%
 sequenceDiagram
     autonumber
     actor Agent as 🤖 MCP Agent
@@ -66,35 +70,33 @@ sequenceDiagram
     participant Cat as 📖 Catalog
     participant Ctl as 🌐 Omada Controller
 
-    rect rgb(238, 242, 255)
-    note over Agent,Cat: 1 · discover
+    rect rgb(30, 27, 75)
+    note over Agent,Cat: 1 . discover
     Agent->>Srv: search_operations("reboot")
     Srv->>Cat: keyword match
-    Cat-->>Srv: rebootDevice, rebootClient, …
+    Cat-->>Srv: rebootDevice, rebootClient, etc.
     Srv-->>Agent: operation_id candidates
     end
 
-    rect rgb(245, 243, 255)
-    note over Agent,Cat: 2 · inspect (on demand)
+    rect rgb(49, 46, 129)
+    note over Agent,Cat: 2 . inspect (on demand)
     Agent->>Srv: get_operation_schema("rebootDevice")
     Srv->>Cat: lookup + resolved $ref schema
     Cat-->>Srv: parameters + body schema
     Srv-->>Agent: schema
     end
 
-    rect rgb(236, 253, 245)
-    note over Agent,Ctl: 3 · call
+    rect rgb(6, 78, 59)
+    note over Agent,Ctl: 3 . call
     Agent->>Srv: call_operation("rebootDevice", path_params, body)
-    Srv->>Ctl: POST /openapi/v1/{omadacId}/…/reboot
+    Srv->>Ctl: POST /openapi/v1/{omadacId}/.../reboot
     Ctl-->>Srv: {errorCode: 0, result}
     Srv-->>Agent: result
     end
 ```
 
 Only `search_operations` and `get_operation_schema` results ever enter the
-agent's context — never all 2000+ schemas at once.
-
-<br>
+agent's context, never all 2000+ schemas at once.
 
 ## Tools
 
@@ -104,30 +106,26 @@ agent's context — never all 2000+ schemas at once.
 | 📋 `get_operation_schema(operation_id)` | Fetch one operation's parameters/body schema, on demand |
 | 🚀 `call_operation(operation_id, path_params, query_params, body)` | Call any cataloged operation |
 | 🔄 `refresh_catalog()` | Re-fetch the live spec after a firmware upgrade, no restart needed |
-| ℹ️ `server_info()` | Which spec is loaded — live vs. bundled, version, operation count |
+| ℹ️ `server_info()` | Which spec is loaded: live vs. bundled, version, operation count |
 | 🏢 `list_sites()` | Convenience: sites this controller manages |
 | 📡 `list_devices()` | Convenience: all APs, switches, gateways across every site |
 
 The operation catalog is built from whichever OpenAPI spec the controller
 actually serves at startup (falling back to the bundled snapshot only if
 the controller is unreachable), so the tool surface tracks that
-controller's real API version automatically — no per-endpoint code to fall
-out of sync as Omada adds, changes, or removes operations.
-
-<br>
+controller's real API version automatically, with no per-endpoint code to
+fall out of sync as Omada adds, changes, or removes operations.
 
 ## Layout
 
 | Path | What's there |
 |---|---|
-| `src/omada_mcp/` | The MCP server (`server.py`) and operation catalog (`catalog.py` — spec loading + search + dispatch) |
+| `src/omada_mcp/` | The MCP server (`server.py`) and operation catalog (`catalog.py`: spec loading, search, dispatch) |
 | `src/omada_auth/auth.py` | `OmadaSession`: fetches `omadacId`, fetches and caches an access token, makes authenticated requests |
 | `src/omada_client/` | Generated SDK (typed wrapper per operation), for direct Python use outside the MCP server. Don't hand-edit; regenerate instead |
-| `openapi/controller-spec.json` | Bundled spec snapshot — fallback if the controller can't be reached at startup, and source for `scripts/regenerate.sh` |
+| `openapi/controller-spec.json` | Bundled spec snapshot, used as a fallback if the controller can't be reached at startup, and as the source for `scripts/regenerate.sh` |
 | `scripts/regenerate.sh` | Regenerate `src/omada_client` from the spec |
 | `examples/get_radio_config.py` | Minimal direct-SDK usage example |
-
-<br>
 
 ## Run locally
 
@@ -139,28 +137,31 @@ uv run omada-mcp
 ```
 
 Credentials come from `OMADA_CLIENT_ID` / `OMADA_CLIENT_SECRET` (env, or a
-`~/.omada.env` file as fallback) — see Settings → Open API in the Omada
+`~/.omada.env` file as fallback); see Settings -> Open API in the Omada
 controller UI to create a client-credentials app. `OMADA_BASE_URL` defaults
 to `https://your-controller.local:8043`; `OMADA_VERIFY_SSL` defaults to `false`
-(self-signed LAN cert — see `src/omada_auth/auth.py` for why).
+(self-signed LAN cert, see `src/omada_auth/auth.py` for why).
 
 Transport defaults to `stdio`. For an agent that connects over HTTP, set
-`FASTMCP_TRANSPORT=http` (`FASTMCP_HOST` / `FASTMCP_PORT` also available —
+`FASTMCP_TRANSPORT=http` (`FASTMCP_HOST` / `FASTMCP_PORT` also available,
 see [FastMCP settings](https://gofastmcp.com)).
-
-<br>
 
 ## Run with Docker
 
 ```bash
 cp .env.example .env   # fill in OMADA_CLIENT_ID / OMADA_CLIENT_SECRET
+./scripts/build_venv_for_docker.sh
 docker compose up --build
 ```
 
+The Dockerfile doesn't install anything itself; `build_venv_for_docker.sh`
+resolves dependencies into `.venv-docker` first (targeting linux/amd64
+regardless of host OS), and `docker build` only copies that in. CI does
+the same, plus a dependency scan (`pip-audit`) and an image scan (Trivy)
+before it pushes to Docker Hub, see `.github/workflows/ci.yml`.
+
 Serves streamable-HTTP on `:8000` (`/mcp`). Point any MCP client at
 `http://<host>:8000/mcp`.
-
-<br>
 
 ## Connect from Claude Code
 
@@ -170,33 +171,29 @@ claude mcp add --transport http omada http://localhost:8000/mcp \
 ```
 
 (Or run `uv run omada-mcp` directly with `FASTMCP_TRANSPORT=stdio` and add
-it as a stdio server instead — no Docker, no token, required.)
-
-<br>
+it as a stdio server instead, no Docker and no token required.)
 
 ## 🔒 Trust model
 
-`call_operation` can reach every cataloged operation — including
-destructive ones (device reboot, config changes) — using this server's own
+`call_operation` can reach every cataloged operation, including destructive
+ones (device reboot, config changes), using this server's own
 client-credentials session; it doesn't ask the MCP client to re-authenticate
 per call. So "whoever can reach this server" is "whoever can drive the
 whole Omada API."
 
 - **stdio** (local `uv run omada-mcp`): that's "whoever can run this
-  process" — same trust boundary as running the CLI/SDK directly.
+  process," same trust boundary as running the CLI/SDK directly.
 - **HTTP** (the Docker/`docker compose` deployment): the container binds
-  `0.0.0.0:8000` so other machines on the LAN can reach it — that's the
+  `0.0.0.0:8000` so other machines on the LAN can reach it, that's the
   point, so agents running elsewhere on your network can use it. Without
   `OMADA_MCP_AUTH_TOKEN` set, that port is unauthenticated: anything on the
   same LAN segment (a compromised IoT device, an unisolated guest-WiFi
   client) can drive the whole Omada API with no credential of its own. Set
   `OMADA_MCP_AUTH_TOKEN` (see `.env.example`) before exposing this beyond
-  `localhost` — `docker-compose.yml` refuses to start without it. This is a
-  single shared-secret bearer token, not OAuth; enough to stop opportunistic
+  `localhost`; `docker-compose.yml` refuses to start without it. This is a
+  single shared-secret bearer token, not OAuth: enough to stop opportunistic
   LAN access, not a substitute for network segmentation if your LAN itself
   isn't trusted.
-
-<br>
 
 ## Using the SDK directly (no MCP)
 
@@ -211,11 +208,9 @@ with session.client() as client:
     )
 ```
 
-`OmadaSession` resolves `*.local` hostnames to IPv4 explicitly — httpx has
+`OmadaSession` resolves `*.local` hostnames to IPv4 explicitly: httpx has
 no happy-eyeballs fallback, and link-local IPv6 advertised over mDNS is
 often unroutable.
-
-<br>
 
 ## Regenerating the SDK
 
@@ -226,11 +221,9 @@ curl -sk "https://your-controller.local:8043/v3/api-docs/00%20All" -o openapi/co
 ./scripts/regenerate.sh
 ```
 
-The MCP server doesn't need this step — it re-derives its operation
-catalog from the controller's live spec on every startup (and on
+The MCP server doesn't need this step, it re-derives its operation catalog
+from the controller's live spec on every startup (and on
 `refresh_catalog()`). Regeneration is only for the typed `omada_client` SDK.
-
-<br>
 
 ## Tests
 

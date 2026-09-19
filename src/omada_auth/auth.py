@@ -1,6 +1,6 @@
 """Auth shim for the Omada Open API.
 
-The generated SDK's spec has no securitySchemes — Omada uses a custom
+The generated SDK's spec has no securitySchemes. Omada uses a custom
 ``Authorization: AccessToken=<token>`` header, wired here by hand.
 """
 

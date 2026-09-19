@@ -1,3 +1,16 @@
+# Default here is .env + plain environment vars - simplest for a single
+# home-lab deployment. For file-based secrets instead (Docker/K8s secrets,
+# Vault agent), drop OMADA_CLIENT_ID/OMADA_CLIENT_SECRET below, add:
+#
+#   secrets:
+#     omada_client_id: { file: ./secrets/omada_client_id }
+#     omada_client_secret: { file: ./secrets/omada_client_secret }
+#   services.omada-mcp.secrets: [omada_client_id, omada_client_secret]
+#   services.omada-mcp.environment:
+#     OMADA_CLIENT_ID_FILE: /run/secrets/omada_client_id
+#     OMADA_CLIENT_SECRET_FILE: /run/secrets/omada_client_secret
+#
+# auth.py reads *_FILE the same way either path.
 services:
   omada-mcp:
     build: .

@@ -136,10 +136,14 @@ export $(grep -v '^#' .env | xargs)
 uv run omada-mcp
 ```
 
-Credentials come from `OMADA_CLIENT_ID` / `OMADA_CLIENT_SECRET` (env, or a
-`~/.omada.env` file as fallback); see Settings -> Open API in the Omada
-controller UI to create a client-credentials app. `OMADA_BASE_URL` defaults
-to `https://your-controller.local:8043`; `OMADA_VERIFY_SSL` defaults to `false`
+Credentials come from `OMADA_CLIENT_ID` / `OMADA_CLIENT_SECRET` env vars,
+or `OMADA_CLIENT_ID_FILE` / `OMADA_CLIENT_SECRET_FILE` pointing at a file
+(Docker/Kubernetes secrets, Vault agent, anything that mounts a file), or a
+`~/.omada.env` file as a last-resort local-dev fallback. Never hardcode
+these or pass them as CLI args (visible in `ps`/process listings); see
+Settings -> Open API in the Omada controller UI to create a
+client-credentials app. `OMADA_BASE_URL` defaults to
+`https://your-controller.local:8043`; `OMADA_VERIFY_SSL` defaults to `false`
 (self-signed LAN cert, see `src/omada_auth/auth.py` for why).
 
 Transport defaults to `stdio`. For an agent that connects over HTTP, set

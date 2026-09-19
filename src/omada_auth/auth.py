@@ -39,6 +39,17 @@ def _force_ipv4(base_url: str) -> str:
     return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
+def _env_or_file(name: str) -> str:
+    """Read NAME from the environment, or from the file at NAME_FILE (Docker/K8s secrets convention)."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    path = os.environ.get(f"{name}_FILE")
+    if path:
+        return Path(path).read_text().strip()
+    return ""
+
+
 def _load_env_file(path: Path) -> None:
     """Populate os.environ from a KEY=VALUE env file, without overwriting existing vars."""
     if not path.is_file():
@@ -80,15 +91,19 @@ class OmadaSession:
 
     def __post_init__(self) -> None:
         self.base_url = _force_ipv4(self.base_url)
+        # Explicit env / secret-file injection outranks the personal
+        # ~/.omada.env fallback, so a Docker/K8s-mounted secret always wins
+        # over a stale dotfile if both happen to be present.
+        self.client_id = self.client_id or _env_or_file("OMADA_CLIENT_ID")
+        self.client_secret = self.client_secret or _env_or_file("OMADA_CLIENT_SECRET")
         if not self.client_id or not self.client_secret:
             _load_env_file(DEFAULT_ENV_FILE)
-            self.client_id = self.client_id or os.environ.get("OMADA_CLIENT_ID", "")
-            self.client_secret = self.client_secret or os.environ.get(
-                "OMADA_CLIENT_SECRET", ""
-            )
+            self.client_id = self.client_id or _env_or_file("OMADA_CLIENT_ID")
+            self.client_secret = self.client_secret or _env_or_file("OMADA_CLIENT_SECRET")
         if not self.client_id or not self.client_secret:
             raise RuntimeError(
-                "OMADA_CLIENT_ID / OMADA_CLIENT_SECRET not set (env or ~/.omada.env)"
+                "OMADA_CLIENT_ID / OMADA_CLIENT_SECRET not set "
+                "(env, OMADA_CLIENT_ID_FILE/OMADA_CLIENT_SECRET_FILE, or ~/.omada.env)"
             )
 
     def _raw_client(self) -> httpx.Client:

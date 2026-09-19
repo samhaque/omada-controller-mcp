@@ -5,9 +5,13 @@ Run directly: uv run python tests/test_auth.py
 
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
+
 import httpx
 
-from omada_auth.auth import OmadaSession
+from omada_auth.auth import OmadaSession, _env_or_file
 
 FAKE_OMADAC_ID = "7e2ec518acbd6bb74282eafcb4ce7aab"
 FAKE_TOKEN = "AT-fake-token"
@@ -77,8 +81,54 @@ def test_request_returns_result_and_raises_on_error_code():
         assert "boom" in str(e)
 
 
+def test_env_or_file_prefers_direct_env_var():
+    os.environ["OMADA_TEST_SECRET"] = "direct-value"
+    try:
+        assert _env_or_file("OMADA_TEST_SECRET") == "direct-value"
+    finally:
+        del os.environ["OMADA_TEST_SECRET"]
+
+
+def test_env_or_file_reads_file_when_direct_var_unset():
+    os.environ.pop("OMADA_TEST_SECRET", None)
+    with tempfile.TemporaryDirectory() as tmp:
+        secret_path = Path(tmp) / "secret"
+        secret_path.write_text("from-file-value\n")
+        os.environ["OMADA_TEST_SECRET_FILE"] = str(secret_path)
+        try:
+            assert _env_or_file("OMADA_TEST_SECRET") == "from-file-value"
+        finally:
+            del os.environ["OMADA_TEST_SECRET_FILE"]
+
+
+def test_session_reads_credentials_from_file_env_vars():
+    with tempfile.TemporaryDirectory() as tmp:
+        id_path = Path(tmp) / "client_id"
+        secret_path = Path(tmp) / "client_secret"
+        id_path.write_text("id-from-file\n")
+        secret_path.write_text("secret-from-file\n")
+        env_backup = {k: os.environ.get(k) for k in ("OMADA_CLIENT_ID", "OMADA_CLIENT_SECRET")}
+        os.environ.pop("OMADA_CLIENT_ID", None)
+        os.environ.pop("OMADA_CLIENT_SECRET", None)
+        os.environ["OMADA_CLIENT_ID_FILE"] = str(id_path)
+        os.environ["OMADA_CLIENT_SECRET_FILE"] = str(secret_path)
+        try:
+            session = OmadaSession(base_url="https://controller.test")
+            assert session.client_id == "id-from-file"
+            assert session.client_secret == "secret-from-file"
+        finally:
+            del os.environ["OMADA_CLIENT_ID_FILE"]
+            del os.environ["OMADA_CLIENT_SECRET_FILE"]
+            for k, v in env_backup.items():
+                if v is not None:
+                    os.environ[k] = v
+
+
 if __name__ == "__main__":
     test_omadac_id_and_token()
     test_authenticated_client_header()
     test_request_returns_result_and_raises_on_error_code()
+    test_env_or_file_prefers_direct_env_var()
+    test_env_or_file_reads_file_when_direct_var_unset()
+    test_session_reads_credentials_from_file_env_vars()
     print("ok")

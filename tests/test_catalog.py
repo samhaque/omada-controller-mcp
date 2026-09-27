@@ -193,6 +193,8 @@ def test_build_request_path_fills_omadac_id_and_validates() -> None:
     op = catalog.operations["patchClient"]
     path = cat.build_request_path(op, "OC123", {"siteId": "s1", "clientMac": "aa:bb"})
     assert path == "/openapi/v1/OC123/sites/s1/clients/aa%3Abb"
+    overridden = {"omadacId": "", "siteId": "s1", "clientMac": "aa:bb"}
+    assert cat.build_request_path(op, "OC123", overridden) == path
 
     with pytest.raises(ValueError, match="clientMac"):
         cat.build_request_path(op, "OC123", {"siteId": "s1"})

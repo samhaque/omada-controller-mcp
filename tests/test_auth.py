@@ -40,6 +40,10 @@ def _fake_handler(request: httpx.Request) -> httpx.Response:
         )
     if request.url.path == "/openapi/v1/OC/fail":
         return httpx.Response(200, json={"errorCode": -1, "msg": "boom", "result": None})
+    if request.url.path == "/openapi/v1/OC/bad-request":
+        return httpx.Response(400, json={"errorCode": -1001, "msg": "Invalid request parameters."})
+    if request.url.path == "/openapi/v1/OC/html":
+        return httpx.Response(502, text="<html>bad gateway</html>")
     raise AssertionError(f"unexpected request: {request.url}")
 
 
@@ -81,6 +85,15 @@ def test_request_returns_result_and_raises_on_error_code():
 
     with pytest.raises(RuntimeError, match="boom"):
         session.request("GET", "/openapi/v1/OC/fail")
+
+
+def test_request_surfaces_controller_msg_on_http_error():
+    session = _session()
+    with pytest.raises(RuntimeError, match=r"-1001 \(HTTP 400\).*Invalid request parameters"):
+        session.request("GET", "/openapi/v1/OC/bad-request")
+    with pytest.raises(RuntimeError, match="HTTP 502, non-JSON body") as exc:
+        session.request("GET", "/openapi/v1/OC/html")
+    assert FAKE_TOKEN not in str(exc.value)
 
 
 def test_env_or_file_prefers_direct_env_var():

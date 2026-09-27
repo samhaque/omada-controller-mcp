@@ -218,10 +218,33 @@ def list_sites(page: int = 1, page_size: int = 100) -> Any:
     )
 
 
+def _all_pages(path: str, page_size: int) -> list[dict[str, Any]]:
+    """Every row of a paged Omada list endpoint ({totalRows, data: [...]})."""
+    rows: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        result = session.request("GET", path, params={"page": page, "pageSize": page_size})
+        data = (result or {}).get("data") or []
+        rows.extend(data)
+        if not data or len(rows) >= (result or {}).get("totalRows", 0):
+            return rows
+        page += 1
+
+
 @mcp.tool
-def list_devices() -> Any:
-    """List all managed devices (access points, switches, gateways) across every site."""
-    return session.request("GET", f"/openapi/v1/{session.omadac_id}/devices")
+def list_devices(page_size: int = 1000) -> list[dict[str, Any]]:
+    """List all managed devices (access points, switches, gateways) across every site.
+
+    Each device carries the siteId and siteName it belongs to.
+    """
+    # GET /{omadacId}/devices (searchGlobalDevice) requires a searchKey and
+    # 400s without one, so walk the sites and page getDeviceList instead.
+    base = f"/openapi/v1/{session.omadac_id}/sites"
+    return [
+        {**device, "siteId": site["siteId"], "siteName": site.get("name")}
+        for site in _all_pages(base, page_size)
+        for device in _all_pages(f"{base}/{site['siteId']}/devices", page_size)
+    ]
 
 
 def main() -> None:

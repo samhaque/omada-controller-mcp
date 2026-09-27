@@ -186,12 +186,23 @@ class OmadaSession:
                     headers={"Authorization": f"AccessToken={self.token}"},
                     **kwargs,
                 )
-                resp.raise_for_status()
-                body = resp.json()
-        except (httpx.HTTPError, ValueError) as e:
+        except httpx.HTTPError as e:
             raise RuntimeError(f"request to {path} failed: {type(e).__name__}") from None
-        if body.get("errorCode") != 0:
-            raise RuntimeError(f"Omada API error {body.get('errorCode')}: {body.get('msg')}")
+        # A 4xx from the controller still carries a JSON errorCode/msg that
+        # says what was wrong (e.g. a missing required query param). Surface
+        # it instead of a bare HTTPStatusError, so an agent can fix its call.
+        try:
+            body = resp.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            raise RuntimeError(f"request to {path} failed: HTTP {resp.status_code}, non-JSON body")
+        if resp.is_error or body.get("errorCode") != 0:
+            msg = body.get("msg") or body.get("message") or body.get("error")
+            raise RuntimeError(
+                f"Omada API error {body.get('errorCode')} (HTTP {resp.status_code}) "
+                f"on {path}: {msg}"
+            )
         return body.get("result")
 
     def client(self) -> AuthenticatedClient:

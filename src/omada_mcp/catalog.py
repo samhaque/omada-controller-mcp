@@ -219,7 +219,9 @@ def build_request_path(op: Operation, omadac_id: str, path_params: dict[str, Any
     template (a "/" in a path param becomes "%2F", a single opaque path
     segment, not an extra separator).
     """
-    values = {_OMADAC_ID_PARAM: omadac_id, **path_params}
+    # omadacId always comes from the session: a caller-supplied one (an agent
+    # passing "" or a guessed id) must not override it.
+    values = {**path_params, _OMADAC_ID_PARAM: omadac_id}
     required_path_params = {p["name"] for p in op.parameters if p["in"] == "path"}
     missing = required_path_params - values.keys()
     if missing:

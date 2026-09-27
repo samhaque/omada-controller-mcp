@@ -193,6 +193,8 @@ def test_build_request_path_fills_omadac_id_and_validates() -> None:
     op = catalog.operations["patchClient"]
     path = cat.build_request_path(op, "OC123", {"siteId": "s1", "clientMac": "aa:bb"})
     assert path == "/openapi/v1/OC123/sites/s1/clients/aa%3Abb"
+    overridden = {"omadacId": "", "siteId": "s1", "clientMac": "aa:bb"}
+    assert cat.build_request_path(op, "OC123", overridden) == path
 
     with pytest.raises(ValueError, match="clientMac"):
         cat.build_request_path(op, "OC123", {"siteId": "s1"})
@@ -251,3 +253,28 @@ def test_bundled_spec_loads_and_builds() -> None:
     assert spec is not None
     catalog = cat.build_catalog(spec, "bundled")
     assert len(catalog.operations) > 1000, "sanity check against the real controller spec"
+
+
+def test_list_devices_walks_sites_and_pages() -> None:
+    from omada_mcp import server
+
+    calls = []
+
+    class FakeSession:
+        omadac_id = "OC"
+
+        def request(self, method, path, params=None):
+            calls.append((path, params["page"]))
+            if path == "/openapi/v1/OC/sites":
+                return {"totalRows": 1, "data": [{"siteId": "s1", "name": "HQ"}]}
+            if path == "/openapi/v1/OC/sites/s1/devices":
+                rows = [{"name": f"AP-HQ-0{i}"} for i in range(1, 4)]
+                page = params["page"]
+                return {"totalRows": 3, "data": rows[(page - 1) * 2 : page * 2]}
+            raise AssertionError(path)
+
+    server.session = FakeSession()
+    devices = server.list_devices(page_size=2)
+    assert [d["name"] for d in devices] == ["AP-HQ-01", "AP-HQ-02", "AP-HQ-03"]
+    assert all(d["siteId"] == "s1" and d["siteName"] == "HQ" for d in devices)
+    assert ("/openapi/v1/OC/sites/s1/devices", 2) in calls
